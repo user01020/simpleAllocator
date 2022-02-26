@@ -5,7 +5,7 @@
 #include "hexdump.h"
 #include <list>
 	
-	#pragma pack(push, 1)
+	//#pragma pack(push, 1)
 	typedef struct _Block{
 		bool isFreeBlock;			//если false, то next и prev соседние блоки
 		struct _Block *prev;
@@ -13,11 +13,15 @@
 		size_t size;
 		uint8_t mem[1];
 	} Block;
-	#pragma pack(pop)
+	//#pragma pack(pop)
 
+	size_t blockMetadataSize(){
+		Block b;
+		return b.mem - (uint8_t *)&b;
+	}
 	
-	
-	#define BLOCKMETADATASIZE (sizeof(Block) - 1)
+	const size_t BLOCKMETADATASIZE = blockMetadataSize();
+	//#define BLOCKMETADATASIZE (sizeof(Block) - 1)
 	#define BLOCKSIZE(block) (block->size + BLOCKMETADATASIZE)
 	Block *head;
 	void *mem;
@@ -148,17 +152,23 @@
 				blocks.erase(it);
 			}
 		}
-		//printf("block = %p\n", block);
+		printf("block = %p\n", block);
 		Block *leftBlock = block->prev;
 		Block *rightBlock = block->next;
-		if(rightBlock != NULL && rightBlock->isFreeBlock){
-			block->size += BLOCKSIZE(rightBlock);//->size + BLOCKMETADATASIZE;
-			deleteBlock(rightBlock);
-		}
-		if(leftBlock != NULL && leftBlock->isFreeBlock){
-			leftBlock->size += BLOCKSIZE(block);
-			return;
-		}
+		if(rightBlock != NULL) 
+			if(rightBlock->isFreeBlock){
+				block->size += BLOCKSIZE(rightBlock);//->size + BLOCKMETADATASIZE;
+				deleteBlock(rightBlock);
+			} else {
+				rightBlock->prev = block->prev;
+			}
+		if(leftBlock != NULL) 
+			if(leftBlock->isFreeBlock){
+				leftBlock->size += BLOCKSIZE(block);
+				return;
+			} else {
+				leftBlock->next = block->next;
+			}
 		deleteBlock(block);
 	}
 ////////////////////////////////////////////
@@ -190,7 +200,7 @@
 		i--;
 		void *addr = *i;
 		addrs.pop_back();
-		//printf("addr = %p\n", addr);
+		printf("addr = %p\n", addr);
 		myfree(addr);
 	}
 	
@@ -201,7 +211,7 @@
 		void *addr = myalloc(allocSize);
 		//printf("addr = %p\n", addr);
 		if(addr == NULL) testFree(addrs);
-		addrs.push_back(addr);
+		else addrs.push_back(addr);
 		if(addrs.size() > 1)
 		addrs.sort(mixList);
 	}
@@ -215,13 +225,16 @@
 		for(int i = 0; i < 10; i++){
 			printf("test %d:\n", i);
 			bool alloc = rand() % 2;
-			if(alloc || addrs.size() == 0){
+			if(alloc || addrs.empty()){
 				testAlloc(addrs, size);
 			} else {
 				testFree(addrs);
 			}
 			printBlocks();
-
+			printf("addrs:\n");
+			for(auto addr : addrs) {
+				printf("%p\n", addr);
+			}
 		}
 	}
 /*
