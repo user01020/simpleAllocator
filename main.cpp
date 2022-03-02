@@ -5,39 +5,181 @@
 #include "hexdump.h"
 #include <list>
 	
-	//#pragma pack(push, 1)
-	/*
-	typedef struct _BlockHead{
-		bool isFreeBlock;			//если false, то next и prev соседние блоки
-		struct _Block *prev;
-		struct _Block *next;			
+	
+	/* struct BlockNode{
+		
+	}; */
+	
+	
+	
+	
+//blockMetadata:
+	
+	/* struct Base{
+		bool isBlockHead;
+		bool isFree;
 		size_t size;
-		uint8_t mem[1];
-	} BlockHead;
-	*/
+	}; */
+	
+	struct BlockNode{
+		struct FreeBlock *prev;
+		struct FreeBlock *next;
+		size_t size;
+	};
+	
+	struct FreeBlockMetadata{
+		bool isBlockHead;
+		bool isFree;
+		struct Node node;
+	};
+	
+	struct AlockBlockMetadata{
+		bool isBlockHead;
+		bool isFree;
+		size_t size;
+	};
+	
+	struct BlockInfo{
+		struct Node node;
+		size_t size;
+	};
+	
+	struct BlockMetadata{
+		bool isBlockHead;
+		bool isFree;
+		union BlockInfo blockInfo;
+	};
+	
+	
+	typedef Metadata struct BlockMetadata
+	
+	
+	
+	typedef Node struct BlockNode
+	
+	Node *head = NULL;
+	
+	size_t getBlockMetadataSize(const Metadata *m){
+		static const size_t freeBlock = sizeof(FreeBlockMetadata);
+		static const size_t allocBlock = sizeof(AlockBlockMetadata);
+		return m->isFree ? freeBlock : allocBlock;
+	}
+	
+	size_t getSize(const Metadata *m){
+		return m->isFree ? m->blockInfo.node.size : m->blockInfo.size;
+	}
+	
+	size_t getBlockSize(const Metadata *m){
+		/* uint8_t *startBlock = (uint8_t *)block;
+		uint8_t *endBlock = (uint8_t *)block->borderTag.other + sizeof(BorderTag) - 1; */
+			return getBlockMetadataSize(m) * 2 + getSize(m);
+	}
+	
+	
+	Metadata *getOtherMetadata(const Metadata *m){
+		size_t dist = getBlockMetadataSize(m) + getSize(m);
+		return m->isBlockHead ? m + dist : m - dist;
+	}
+	
+	void syncMetadata(const Metadata* block){
+		Metadata *other = getOtherMetadata(m);
+		memcpy(other, m, getBlockMetadataSize(m));
+		//other->isBlockHead = m->isBlockHead ^ 1;
+		other->isBlockHead = m->isBlockHead ? false : true;
+	}
+	
+	void setBlockMetadata(Metadata *block, const Metadata *m){
+		
+	}
+	
+	void decrease(Metadata *m, size_t size){
+		if(!m->isFree) throw 1;
+		
+		
+		
+		
+		FreeBlock *head, newTail;
+		size_t oldSize, newSize;
+		head = block;
+		newSize = head->size - size;
+		//oldTail = head + sizeof(FreeBlock) + oldSize;
+		newTail = head + sizeof(FreeBlock) + newSize;
+		head->size = newSize;
+		*newTail = *head;
+	}
+	
+	
+	
+	void addToList(FreeBlock *block){
+		if(head == NULL){
+			block->prev = head;
+			block->next = head;
+			return;
+		}
+		FreeBlock *tail = block->prev;
+		block->prev = tail;
+		block->next = head;
+		tail->next = block;
+		head->prev = block;
+	}
+
+	void removeFromList(freeBlock *block){
+		if(head == NULL) return;
+		if(head->next == head) return;
+		FreeBlock *prev, *next;
+		prev = block->prev;
+		next = block->next;
+		prev->next = next;
+		next->prev = prev;
+	}
+	
+	void allocateBlock(Block *block){
+		AllocBlock *block = (AllocBlock *)block;	
+		
+	}
+	
+	
+	void freeBlock(allocBlock *block){
+		Block minFreeBlock = {true, 0}
+		if(getBlockSize(block) < getBlockSize(&minFreeBlock))
+			throw 1;
+		block->base.isFree = false;
+		
+	}
+	
+	
+	
+	
 	
 	
 	//#pragma pack(pop)
 
-	size_t blockMetadataSize(){
+	/* size_t blockMetadataSize(){
 		Block b;
 		return b.mem - (uint8_t *)&b;
-	}
+	} */
 	
-	const size_t BLOCKMETADATASIZE = blockMetadataSize();
+	//const size_t BLOCKMETADATASIZE = blockMetadataSize();
 	//#define BLOCKMETADATASIZE (sizeof(Block) - 1)
 	#define BLOCKSIZE(block) (block->size + BLOCKMETADATASIZE)
-	Block *head = 0;
-	void *mem = NULL;
-	size_t memSize = 0;
+	
+	/* void *mem = NULL;
+	size_t memSize = 0; */
 	
 	
-	std::list<Block *> blocks;
+	//std::list<Block *> blocks;
+	
+	
+	addToList(FreeBlock *block){
+		if(head == NULL){
+			
+		}
+	}
 	
 	
 	
 	
-	Block *createBlock(bool isFreeBlock, void *buf, size_t blockSize){
+	/* Block *createBlock(bool isFreeBlock, void *buf, size_t blockSize){
 	    
 		//printf("createBlock:\n");
 		//printf("buf = %p\n", buf);
@@ -70,9 +212,9 @@
 		blocks.push_back(block);
 		//
 		return block;
-	}
+	} */
 	
-	void deleteBlock(Block *block){
+	/* void deleteBlock(Block *block){
 
 		printf("deleteBlock\n");
 
@@ -93,7 +235,7 @@
 			}
 			freeMem(block);
 		}
-	}
+	} */
 	// Эта функция будет вызвана перед тем как вызывать myalloc и myfree
     // используйте ее чтобы инициализировать ваш аллокатор перед началом
     // работы.
@@ -112,10 +254,11 @@
 		//printf("head = %p\n", head);
 		//mem = buf;
 		//memSize = size;
-		createBlock(true, buf, size);
 		//Block *block = (Block *)buf;
 		//printf("BLOCKSIZE(block) = %d\n", BLOCKSIZE(block));
 		//printf("head = %p\n", head);
+		
+		initAllocator();
     }
 	
 	
@@ -123,19 +266,19 @@
 	void *myalloc(std::size_t size)
 	{
 		printf("myalloc:\n");
-		if(head == NULL) return NULL;
+		//if(head == NULL) return NULL;
 		//printf("head = %p\n", head);
-		Block *freeBlock = head;
+		/* Block *freeBlock = head;
 		//printf("freeBlock = %p\n", freeBlock);
 		//*freeBlock;
 		Block *allocBlock;
-		size_t allocBlockSize = size + BLOCKMETADATASIZE;
+		size_t allocBlockSize = size + BLOCKMETADATASIZE; */
 		
-		Block *block = findFreeBlock(size);
+		FreeBlock *block = findFreeBlock(size);
 		
 		if(block == NULL) return NULL;
 		
-		allocMem(block);
+		allocMem(block, size);
 		/*
 		do{
 			
