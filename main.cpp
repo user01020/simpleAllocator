@@ -72,7 +72,7 @@
 	size_t getBlockSize(const Metadata *m){
 		/* uint8_t *startBlock = (uint8_t *)block;
 		uint8_t *endBlock = (uint8_t *)block->borderTag.other + sizeof(BorderTag) - 1; */
-			return getBlockMetadataSize(m) * 2 + getSize(m);
+		return getBlockMetadataSize(m) * 2 + getSize(m);
 	}
 	
 	
@@ -81,16 +81,21 @@
 		return m->isBlockHead ? m + dist : m - dist;
 	}
 	
-	void syncMetadata(const Metadata* block){
+	/* void syncMetadata(const Metadata* block){
 		Metadata *other = getOtherMetadata(m);
 		memcpy(other, m, getBlockMetadataSize(m));
 		//other->isBlockHead = m->isBlockHead ^ 1;
 		other->isBlockHead = m->isBlockHead ? false : true;
-	}
+	} */
 	
-	void setBlockMetadata(Metadata *block, const Metadata *m){
+	/* void setBlockMetadata(Metadata *block, const Metadata *m){
+		
+	} */
+	
+	void setSize(Metadata *block, size){
 		
 	}
+	
 	
 	void decrease(Metadata *m, size_t size){
 		if(!m->isFree) throw 1;
@@ -144,7 +149,6 @@
 		if(getBlockSize(block) < getBlockSize(&minFreeBlock))
 			throw 1;
 		block->base.isFree = false;
-		
 	}
 	
 	
