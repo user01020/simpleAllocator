@@ -20,65 +20,75 @@
 		bool isFree;
 		size_t size;
 	}; */
-	
+	/*
 	struct BlockNode{
 		struct FreeBlock *prev;
 		struct FreeBlock *next;
 		size_t size;
 	};
+	*/
 	
-	struct FreeBlockMetadata{
-		bool isBlockHead;
-		bool isFree;
-		struct Node node;
-	};
+//all structs point in one part of mem and start with same addr
 	
-	struct AlockBlockMetadata{
-		bool isBlockHead;
+	struct _BlockInfo{
 		bool isFree;
 		size_t size;
 	};
 	
-	struct BlockInfo{
-		struct Node node;
-		size_t size;
+	struct _Node{
+	    struct _BlockInfo blinfo
+	    struct _Node *prev;
+	    struct _Node *next;
 	};
 	
-	struct BlockMetadata{
-		bool isBlockHead;
-		bool isFree;
-		union BlockInfo blockInfo;
+	struct _BlockMetadata{
+	    struct _BlockInfo blinfo;
+	    bool isHeadMeta;
 	};
 	
+	struct _FreeBlockMetadata{
+	    struct _Node node;
+	    bool isHeadMeta;
+	};
 	
-	typedef Metadata struct BlockMetadata
-	
-	
-	
-	typedef Node struct BlockNode
+	typedef BlockInfo struct _BlockInfo;
+	typedef Node struct _Node;
+	typedef BlockMetadata struct _BlockMetadata;
+	typedef AllocBlockMetadata struct _BlockMetadata;
+	typedef FreeBlockMetadata struct _FreeBlockMetadata;
 	
 	Node *head = NULL;
 	
-	size_t getBlockMetadataSize(const Metadata *m){
-		static const size_t freeBlock = sizeof(FreeBlockMetadata);
-		static const size_t allocBlock = sizeof(AlockBlockMetadata);
-		return m->isFree ? freeBlock : allocBlock;
+	
+	size_t getBlockMetadataSize(const void *block){
+		return (BlockInfo)block->isFree ? sizeof(FreeBlockMetadata) : sizeof(AllocBlockMetadata);
 	}
 	
-	size_t getSize(const Metadata *m){
-		return m->isFree ? m->blockInfo.node.size : m->blockInfo.size;
+	size_t getMemSize(const void *block){
+		return (BlockInfo)block->size;
 	}
 	
-	size_t getBlockSize(const Metadata *m){
+	size_t getBlockSize(const void *block){
 		/* uint8_t *startBlock = (uint8_t *)block;
 		uint8_t *endBlock = (uint8_t *)block->borderTag.other + sizeof(BorderTag) - 1; */
-		return getBlockMetadataSize(m) * 2 + getSize(m);
+		return getBlockMetadataSize(block) * 2 + getMemSize(block);
 	}
 	
 	
+	
+	/*
 	Metadata *getOtherMetadata(const Metadata *m){
 		size_t dist = getBlockMetadataSize(m) + getSize(m);
 		return m->isBlockHead ? m + dist : m - dist;
+	}
+	*/
+	
+	void *getRightBlock(const void *block){
+	    return block + getBlockSize(block);
+	}
+	
+	void *getLeftBlock(const void *block){
+	    return block - getBlockSize(block);
 	}
 	
 	/* void syncMetadata(const Metadata* block){
@@ -92,9 +102,6 @@
 		
 	} */
 	
-	void setSize(Metadata *block, size){
-		
-	}
 	
 	
 	void decrease(Metadata *m, size_t size){
@@ -112,7 +119,6 @@
 		head->size = newSize;
 		*newTail = *head;
 	}
-	
 	
 	
 	void addToList(FreeBlock *block){
@@ -165,7 +171,7 @@
 	
 	//const size_t BLOCKMETADATASIZE = blockMetadataSize();
 	//#define BLOCKMETADATASIZE (sizeof(Block) - 1)
-	#define BLOCKSIZE(block) (block->size + BLOCKMETADATASIZE)
+	//#define BLOCKSIZE(block) (block->size + BLOCKMETADATASIZE)
 	
 	/* void *mem = NULL;
 	size_t memSize = 0; */
@@ -240,6 +246,11 @@
 			freeMem(block);
 		}
 	} */
+	
+	void initAllocator(){
+	    
+	}
+	
 	// Эта функция будет вызвана перед тем как вызывать myalloc и myfree
     // используйте ее чтобы инициализировать ваш аллокатор перед началом
     // работы.
@@ -278,11 +289,15 @@
 		Block *allocBlock;
 		size_t allocBlockSize = size + BLOCKMETADATASIZE; */
 		
-		FreeBlock *block = findFreeBlock(size);
+		void *block = findFreeBlock();
+		
+		
 		
 		if(block == NULL) return NULL;
 		
-		allocMem(block, size);
+		
+		
+		//allocMem(block, size);
 		/*
 		do{
 			
