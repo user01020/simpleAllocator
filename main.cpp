@@ -30,50 +30,72 @@
 	
 //all structs point in one part of mem and start with same addr
 	
-	struct _BlockInfo{
+	struct _AllocBlockMetadata{
 		bool isFree;
 		size_t size;
 	};
 	
-	struct _Node{
-	    struct _BlockInfo blinfo
-	    struct _Node *prev;
-	    struct _Node *next;
-	};
-	
-	struct _BlockMetadata{
-	    struct _BlockInfo blinfo;
-	    bool isHeadMeta;
-	};
-	
 	struct _FreeBlockMetadata{
-	    struct _Node node;
-	    bool isHeadMeta;
+	    bool isFree;
+	    size_t size;
+	    struct _FreeBlockMetadata *prev;
+	    struct _FreeBlockMetadata *next;
 	};
 	
-	typedef BlockInfo struct _BlockInfo;
-	typedef Node struct _Node;
-	typedef BlockMetadata struct _BlockMetadata;
-	typedef AllocBlockMetadata struct _BlockMetadata;
+	//typedef BlockI struct _BlockInfo;
+	typedef Node struct _FreeBlockMetadata;
+	typedef BlockMetadata struct _AllocBlockMetadata;
+	typedef AllocBlockMetadata struct _AllocBlockMetadata;
 	typedef FreeBlockMetadata struct _FreeBlockMetadata;
-	
+	typedef PBlock BlockMetadata *;
 	Node *head = NULL;
 	
-	
-	size_t getBlockMetadataSize(const void *block){
-		return (BlockInfo)block->isFree ? sizeof(FreeBlockMetadata) : sizeof(AllocBlockMetadata);
+	bool isFreeBlock(PBlock pblock){
+	    return pblock->isFree;
 	}
 	
-	size_t getMemSize(const void *block){
-		return (BlockInfo)block->size;
+	size_t getBlockMetadataSize(PBlock pblock){
+		return isFreeBlock(pblock) ? sizeof(FreeBlockMetadata) : sizeof(AllocBlockMetadata);
 	}
 	
-	size_t getBlockSize(const void *block){
+	size_t getMemSize(PBlock pblock){
+		return pblock->size;
+	}
+	
+	size_t getBlockSize(void *block){
 		/* uint8_t *startBlock = (uint8_t *)block;
 		uint8_t *endBlock = (uint8_t *)block->borderTag.other + sizeof(BorderTag) - 1; */
 		return getBlockMetadataSize(block) * 2 + getMemSize(block);
 	}
 	
+	getHeadMetadata(void *block){
+	    
+	}
+	
+	getTailMetadata(void *block){
+	    
+	}
+	
+    int createAllocBlock(void *block, size_t memSize){
+        size_t allocBlockSize = memSize + sizeof(AllocBlockMetadata) * 2;
+        if(blockSize > getMemSize(block)) return 1;
+        AllocBlockMetadata *abHead, *abTail;
+        FreeBlockMetadata *fbHead, *fbTail;
+        fbHead = (FreeBlockMetadata *)block;
+        size_t freeBlockSize = fbTail->size -= allocBlockSize;
+        fbTail = (FreeBlockMetadata *)((uint8_t *)fbHead + sizeof(FreeBlockMetadata) + freeBlockSize);
+        *fbTail = *fbHead;
+        abHead = (AllocBlockMetadata *)((uint8_t *)fbTail + sizeof(FreeBlockMetadata));
+        abTail = (AllocBlockMetadata *)((uint8_t *)fbTail + sizeof(AllocBlockMetadata) + memSize);
+        
+        
+        void *freeBlock = block;
+        void *allocBlock = NULL;
+        FreeBlockMetadata *freeBlockHead = (FreeBlockMetadata *)block;
+        freeBlockHead->blinfo.size -= blockSize;
+        FreeBlockMetadata *freeBlockTail = 
+        return 0;
+    }
 	
 	
 	/*
