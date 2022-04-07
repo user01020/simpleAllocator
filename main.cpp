@@ -4,275 +4,248 @@
 #include <cstring>
 #include "hexdump.h"
 #include <list>
-	
-	
-	/* struct BlockNode{
-		
-	}; */
-	
-	
-	
-	
-//blockMetadata:
-	
-	/* struct Base{
-		bool isBlockHead;
-		bool isFree;
-		size_t size;
-	}; */
-	/*
-	struct BlockNode{
-		struct FreeBlock *prev;
-		struct FreeBlock *next;
-		size_t size;
-	};
-	*/
+
+using namespace std;
 	
 //all structs point in one part of mem and start with same addr
-	
+	/*
 	struct _AllocBlockMetadata{
 		bool isFree;
 		size_t size;
-	};
+	};*/
 	
-	struct _FreeBlockMetadata{
-	    bool isFree;
+	struct _BlockMetadata{
+	    bool isFree; //если блок свободный
+	    bool isHead; //если это метаданные в начале блока
 	    size_t size;
-	    struct _FreeBlockMetadata *prev;
-	    struct _FreeBlockMetadata *next;
+	    struct _BlockMetadata *prev;
+	    struct _BlockMetadata *next;
 	};
 	
 	//typedef BlockI struct _BlockInfo;
-	typedef Node struct _FreeBlockMetadata;
-	typedef BlockMetadata struct _AllocBlockMetadata;
-	typedef AllocBlockMetadata struct _AllocBlockMetadata;
-	typedef FreeBlockMetadata struct _FreeBlockMetadata;
-	typedef PBlock BlockMetadata *;
+	typedef uint8_t Byte;
+	typedef struct _BlockMetadata Node;
+	typedef struct _BlockMetadata BlockMetadata;
+	typedef struct _BlockMetadata AllocBlockMetadata;
+	typedef struct _BlockMetadata FreeBlockMetadata;
+	//typedef PBlock BlockMetadata *;
 	Node *head = NULL;
-	
-	bool isFreeBlock(PBlock pblock){
-	    return pblock->isFree;
+    
+	BlockMetadata *getHeadMetadataPoint(void *block){
+	    return (BlockMetadata *)block;
 	}
 	
-	size_t getBlockMetadataSize(PBlock pblock){
-		return isFreeBlock(pblock) ? sizeof(FreeBlockMetadata) : sizeof(AllocBlockMetadata);
+	BlockMetadata &getMetadata(void *block){
+	    return *getHeadMetadataPoint(block);
 	}
 	
-	size_t getMemSize(PBlock pblock){
-		return pblock->size;
+	BlockMetadata *getMetadataPointFromNode(Node *node){
+	    return (BlockMetadata *)node;
+	}
+	
+	void *getMemPoint(void *block){
+	    return (void *)((Byte *)block + sizeof(BlockMetadata));
+	}
+    
+    void *getBlockPoint(void *blockMemPoint){
+        return (void *)((Byte *)blockMemPoint - sizeof(BlockMetadata));
+    }
+    
+    void *getBlockPointFromMetaPoint(BlockMetadata *pmetadata){
+        if(pmetadata->isHead)
+            return (void *)pmetadata;
+        return (void *)((Byte *)pmetadata - pmetadata->size - sizeof(BlockMetadata));
+    }
+    
+    void *getBlockPointFromNode(Node *node){
+        BlockMetadata *pmetadata = getMetadataPointFromNode(node);
+        return getBlockPointFromMetaPoint(pmetadata);
+    }
+	
+	Node *getNodePoint(FreeBlockMetadata &metadata){
+	    return (Node *)&metadata;
+	}
+	
+	bool isFreeBlock(void *block){
+	    return getMetadata(block).isFree;
+	}
+	
+	size_t getMetadataSize(BlockMetadata &metadata){
+	    return sizeof(metadata);
+	}
+	
+	size_t getBlockMetadataSize(void *block){
+		return getMetadataSize(getMetadata(block));
+	}
+	
+	size_t getMemSize(void *block){
+		return getMetadata(block).size;
+	}
+	
+	size_t getBlockSizeFromMeta(BlockMetadata &metadata){
+	    return getMetadataSize(metadata) *
+	    2 + metadata.size;
 	}
 	
 	size_t getBlockSize(void *block){
-		/* uint8_t *startBlock = (uint8_t *)block;
-		uint8_t *endBlock = (uint8_t *)block->borderTag.other + sizeof(BorderTag) - 1; */
-		return getBlockMetadataSize(block) * 2 + getMemSize(block);
+		return getBlockSizeFromMeta(getMetadata(block));
 	}
 	
-	getHeadMetadata(void *block){
+	void *getRightBlock(void *block){
+	    return (void *)((Byte *)block + getBlockSize(block));
+	}
+	
+	void *getLeftBlock(void *block){
+	    BlockMetadata &leftBlockMetadata = *(BlockMetadata *)((Byte *)block - sizeof(BlockMetadata));
+	    return (void *)((Byte *)block - getBlockSizeFromMeta(leftBlockMetadata));
+	}
+///////////////////////////////////////	
+	void *setMetadata(void *block, BlockMetadata &metadata){
+	    printf("\n setMetadata\n");
+	    printf("\n block = %p\n", block);
+	    //bool isFreeBlock = metadata.isFree;
+	    size_t memsize = metadata.size;
+	    size_t metadatasize = getMetadataSize(metadata);
+	    size_t blocksize = memsize + metadatasize * 2;
+	    //
 	    
+	    printf("\n memsize = %zu\n metadatasize = %zu\n blocksize = %zu\n", memsize, metadatasize, blocksize);
+	    //
+	    //BlockMetadata *pmetadata = &metadata;
+	    BlockMetadata *pheadmeta = (BlockMetadata *)block;
+	    BlockMetadata *ptailmeta = (BlockMetadata *)((Byte *)pheadmeta + blocksize - metadatasize);
+	    //
+	    printf("\n pmetadata = %p\n pheadmeta = %p\n ptailmeta = %p\n",(void *)&metadata, (void *)pheadmeta, (void *)ptailmeta);
+	    //
+	    if(pheadmeta != &metadata){
+	        //memcpy(pheadmeta, pmetadata, metadatasize);
+	        *pheadmeta = metadata;
+	    }
+	    if(ptailmeta != &metadata){
+	        //memcpy(ptailmeta, pmetadata, metadatasize);
+	        *ptailmeta = metadata;
+	    }
+	    pheadmeta->isHead = true;
+	    ptailmeta->isHead = false;
+	    return block;
 	}
-	
-	getTailMetadata(void *block){
-	    
-	}
-	
-    int createAllocBlock(void *block, size_t memSize){
-        size_t allocBlockSize = memSize + sizeof(AllocBlockMetadata) * 2;
-        if(blockSize > getMemSize(block)) return 1;
-        AllocBlockMetadata *abHead, *abTail;
-        FreeBlockMetadata *fbHead, *fbTail;
-        fbHead = (FreeBlockMetadata *)block;
-        size_t freeBlockSize = fbTail->size -= allocBlockSize;
-        fbTail = (FreeBlockMetadata *)((uint8_t *)fbHead + sizeof(FreeBlockMetadata) + freeBlockSize);
-        *fbTail = *fbHead;
-        abHead = (AllocBlockMetadata *)((uint8_t *)fbTail + sizeof(FreeBlockMetadata));
-        abTail = (AllocBlockMetadata *)((uint8_t *)fbTail + sizeof(AllocBlockMetadata) + memSize);
-        
-        
-        void *freeBlock = block;
-        void *allocBlock = NULL;
-        FreeBlockMetadata *freeBlockHead = (FreeBlockMetadata *)block;
-        freeBlockHead->blinfo.size -= blockSize;
-        FreeBlockMetadata *freeBlockTail = 
-        return 0;
-    }
-	
-	
 	/*
-	Metadata *getOtherMetadata(const Metadata *m){
-		size_t dist = getBlockMetadataSize(m) + getSize(m);
-		return m->isBlockHead ? m + dist : m - dist;
+	void setMemSize(void *block, size_t memsize){
+	    BlockMetadata &metadata = getMetadata(block);
+	    //if(memsize > metadata.size) return;
+	    metadata.size = memsize;
+	    setMetadata(block, metadata);
 	}
 	*/
-	
-	void *getRightBlock(const void *block){
-	    return block + getBlockSize(block);
-	}
-	
-	void *getLeftBlock(const void *block){
-	    return block - getBlockSize(block);
-	}
-	
-	/* void syncMetadata(const Metadata* block){
-		Metadata *other = getOtherMetadata(m);
-		memcpy(other, m, getBlockMetadataSize(m));
-		//other->isBlockHead = m->isBlockHead ^ 1;
-		other->isBlockHead = m->isBlockHead ? false : true;
-	} */
-	
-	/* void setBlockMetadata(Metadata *block, const Metadata *m){
-		
-	} */
-	
-	
-	
-	void decrease(Metadata *m, size_t size){
-		if(!m->isFree) throw 1;
-		
-		
-		
-		
-		FreeBlock *head, newTail;
-		size_t oldSize, newSize;
-		head = block;
-		newSize = head->size - size;
-		//oldTail = head + sizeof(FreeBlock) + oldSize;
-		newTail = head + sizeof(FreeBlock) + newSize;
-		head->size = newSize;
-		*newTail = *head;
-	}
-	
-	
-	void addToList(FreeBlock *block){
+//////////////////////////////////////
+	void addToList(Node *node){
 		if(head == NULL){
-			block->prev = head;
-			block->next = head;
+		    head = node;
+			node->prev = head;
+			node->next = head;
 			return;
 		}
-		FreeBlock *tail = block->prev;
-		block->prev = tail;
-		block->next = head;
-		tail->next = block;
-		head->prev = block;
+		Node *tail = head->prev;
+		node->prev = tail;
+		node->next = head;
+		tail->next = node;
+		head->prev = node;
 	}
-
-	void removeFromList(freeBlock *block){
+	
+	void removeFromList(Node *node){
 		if(head == NULL) return;
 		if(head->next == head) return;
-		FreeBlock *prev, *next;
-		prev = block->prev;
-		next = block->next;
+		if(node == head) head = head->next;
+		Node *prev, *next;
+		prev = node->prev;
+		next = node->next;
 		prev->next = next;
 		next->prev = prev;
 	}
 	
-	void allocateBlock(Block *block){
-		AllocBlock *block = (AllocBlock *)block;	
-		
+	void removeBlock(void *block);
+//////////////////////////////////////	
+		//second block merge to first block
+	void *merge(void *firstblock, void *secondblock){
+	    if(firstblock == secondblock) return NULL;
+	    BlockMetadata &FBmetadata = getMetadata(firstblock);
+	    BlockMetadata &SBmetadata = getMetadata(secondblock);
+	    void *block = firstblock < secondblock ? firstblock : secondblock;
+	    if(SBmetadata.isFree) 
+	        removeBlock(secondblock);
+	    //setMemSize(block, FBmetadata.size + SBmetadata.size);
+	    FBmetadata.size += SBmetadata.size;
+	    setMetadata(block, FBmetadata);
+	    return block;
 	}
 	
-	
-	void freeBlock(allocBlock *block){
-		Block minFreeBlock = {true, 0}
-		if(getBlockSize(block) < getBlockSize(&minFreeBlock))
-			throw 1;
-		block->base.isFree = false;
+	void *createBlock(void *blockpoint, bool isFreeBlock, size_t memsize){
+	    //
+	    printf("\n createBlock\n");
+	    printf("\n memsize = %zu\n", memsize);
+	    //
+	    BlockMetadata *pheadmeta = getHeadMetadataPoint(blockpoint);
+	    //
+	    printf("\n pheadmeta = %p \n", pheadmeta);
+	    //
+	    pheadmeta->isFree = isFreeBlock;
+	    pheadmeta->size = memsize;
+	    //
+	    //printf("\n metadata.size = %zu\n", metadata.size);
+	    //
+	    if(isFreeBlock){
+	        FreeBlockMetadata &FBmetadata = *(FreeBlockMetadata *)pheadmeta;
+	        addToList(getNodePoint(FBmetadata));
+	    }
+	    setMetadata(blockpoint, *pheadmeta);
+	    return blockpoint;
 	}
 	
+	void toFreeBlock(void *block){
+	    if(isFreeBlock(block)) return;
+	    BlockMetadata &metadata = getMetadata(block);
+	    metadata.isFree = true;
+	    addToList(getNodePoint((FreeBlockMetadata &)metadata));
+	    setMetadata(block, metadata);
+	}
 	
-	
-	
-	
-	
-	//#pragma pack(pop)
+	void removeBlock(void *block){
+	    BlockMetadata &metadata = getMetadata(block);
+	    if(metadata.isFree){
+	        FreeBlockMetadata &FBmetadata = *(FreeBlockMetadata *)&metadata;
+	        removeFromList(getNodePoint(FBmetadata));
+	    } else {
+	        void *rightblock = getRightBlock(block);
+	        void *leftblock = getLeftBlock(block);
+	        if(isFreeBlock(rightblock)){
+	            merge(rightblock, block
+	            );
+	        }
+	        if(isFreeBlock(leftblock)){
+	            merge(leftblock, block);
+	        }
+	        //toFreeBlock(block)
+	    }
+	}
 
-	/* size_t blockMetadataSize(){
-		Block b;
-		return b.mem - (uint8_t *)&b;
-	} */
-	
-	//const size_t BLOCKMETADATASIZE = blockMetadataSize();
-	//#define BLOCKMETADATASIZE (sizeof(Block) - 1)
-	//#define BLOCKSIZE(block) (block->size + BLOCKMETADATASIZE)
-	
-	/* void *mem = NULL;
-	size_t memSize = 0; */
-	
-	
-	//std::list<Block *> blocks;
-	
-	
-	addToList(FreeBlock *block){
-		if(head == NULL){
-			
-		}
-	}
-	
-	
-	
-	
-	/* Block *createBlock(bool isFreeBlock, void *buf, size_t blockSize){
-	    
-		//printf("createBlock:\n");
-		//printf("buf = %p\n", buf);
-		//printf("blockSize = %d\n", blockSize);
-		Block *block = (Block *)buf;
-		//printf("block p = %p\n", block);
-		block->isFreeBlock = isFreeBlock;
-		block->size = blockSize - BLOCKMETADATASIZE;
-		//printf("block->size = %d\n", block->size);
-		if(isFreeBlock){
-			if(head == NULL){
-				head = block;
-				//printf("head = %p\n", head);
-				block->next = head;
-				block->prev = head;
-			} else{
-				Block *tail = head->prev;
-				block->next = head;
-				block->prev = tail;
-				head->prev = block;
-				tail->next = block;
-			}
-		} else {
-			block->next = NULL;
-			block->prev = NULL;
-		}
-		
-		//debug
-		block->mem[block->size - 1] = 2;
-		blocks.push_back(block);
-		//
-		return block;
-	} */
-	
-	/* void deleteBlock(Block *block){
+    //find free block what have size >= memsize
+    void *findFreeBlock(size_t memsize){
+        //
+        printf("\n findFreeBlock\n");
+        printf("\n head = %p\n", head);
+        //
+        if(head == NULL) return NULL;
+        Node *node = head;
+        do{
+            //
+            printf("\nDo node = %p\n", node);
+            if(node->size >= memsize) 
+            return getBlockPointFromNode(node);
+            node = node->next;
+        }while(node != head);
+        return NULL;
+    }
 
-		printf("deleteBlock\n");
-
-		for(auto i = blocks.begin(); i != blocks.end(); ++i){
-			if(*i == block) blocks.erase(i);
-		}
-		
-		if(isFreeBlock(block)){
-			removeFromList(block);
-		} else {
-			Block *rightBlock = getRightBlock(block);
-			Block *leftBlock = getLeftBlock(block);
-			if(isFreeBlock(rightBlock)){
-				expand(block, leftBlock);
-			}
-			if(isFreeBlock(leftBlock)){
-				block = expand(block, leftBlock);
-			}
-			freeMem(block);
-		}
-	} */
-	
-	void initAllocator(){
-	    
-	}
-	
 	// Эта функция будет вызвана перед тем как вызывать myalloc и myfree
     // используйте ее чтобы инициализировать ваш аллокатор перед началом
     // работы.
@@ -283,19 +256,12 @@
     // size - размер участка памяти, на который указывает buf
     
 	void mysetup(void *buf, std::size_t size)
-	{
-		//head = NULL;
-		printf("mysetup:\n");
-		//printf("buf = %p\n", buf);
-		//printf("size = %d\n", size);
-		//printf("head = %p\n", head);
-		//mem = buf;
-		//memSize = size;
-		//Block *block = (Block *)buf;
-		//printf("BLOCKSIZE(block) = %d\n", BLOCKSIZE(block));
-		//printf("head = %p\n", head);
-		
-		initAllocator();
+    {
+	    size_t memsize = size - sizeof(BlockMetadata) * 2;
+	    createBlock(buf, true, memsize);
+	    //
+	    printf("\n head = %p\n", head);
+	    //
     }
 	
 	
@@ -307,41 +273,22 @@
 		//printf("head = %p\n", head);
 		/* Block *freeBlock = head;
 		//printf("freeBlock = %p\n", freeBlock);
-		//*freeBlock;
+	;
 		Block *allocBlock;
 		size_t allocBlockSize = size + BLOCKMETADATASIZE; */
+		size_t blocksize = size + sizeof(AllocBlockMetadata) * 2;
+		void *freeblock = findFreeBlock(blocksize);
 		
-		void *block = findFreeBlock();
-		
-		
-		
-		if(block == NULL) return NULL;
-		
-		
-		
-		//allocMem(block, size);
-		/*
-		do{
-			
-			if(freeBlock->size >= allocBlockSize){
-				freeBlock->size -= allocBlockSize;
-				void *buf = freeBlock->mem + freeBlock->size;
-				allocBlock = createBlock(false, buf, allocBlockSize);
-				//allocBlock->prev = freeBlock;
-				//uint8_t *memEnd = (uint8_t *)mem + memSize - 1;
-				//uint8_t *allocBlockEnd = allocBlock->mem + allocBlock->size - 1;
-				//if(allocBlockEnd < memEnd){
-					//allocBlock->next = (Block *)(allocBlock->mem + allocBlock->size);
-					//Block *rightBlock = allocBlock->next;
-					//if(!rightBlock->isFreeBlock)
-						//rightBlock->prev = allocBlock;
-				}
-				//->size + BLOCKMETADATASIZE;
-				return allocBlock->mem;
-			}
-			freeBlock = freeBlock->next;
-		} while(freeBlock != head);
-		return NULL;*/
+		if(freeblock == NULL) return NULL;
+		//
+		printf("\n freeblock = %p\n blocksize = %zu\n freeblockmemsize = %zu\n", freeblock, blocksize, getMemSize(freeblock));
+		//
+		BlockMetadata &metadata = getMetadata(freeblock);
+		metadata.size -= blocksize;
+		setMetadata(freeblock, metadata);
+		void *allocblock = (void *)((Byte *)freeblock + getBlockSize(freeblock));
+		createBlock(allocblock, false, size);
+		return getMemPoint(allocblock);
 	}
 
 	
@@ -349,74 +296,54 @@
 	void myfree(void *p)
 	{
 	    printf("myfree\n");
-		//Block *block = (Block *)((uint8_t *)p - BLOCKMETADATASIZE);
-		auto it = blocks.begin();
-		int n = blocks.size();
-		for(int i = 0; i < n; i++, it++){
-			if(*it == block) {
-				blocks.erase(it);
-			}
-		}
-		printf("block = %p\n", block);/*
-		Block *leftBlock = block->prev;
-		Block *rightBlock = block->next;
-		if(rightBlock != NULL) 
-			if(rightBlock->isFreeBlock){
-				block->size += BLOCKSIZE(rightBlock);//->size + BLOCKMETADATASIZE;
-				deleteBlock(rightBlock);
-			} else {
-				rightBlock->prev = block->prev;
-			}
-		if(leftBlock != NULL) 
-			if(leftBlock->isFreeBlock){
-				leftBlock->size += BLOCKSIZE(block);
-				return;
-			} else {
-				leftBlock->next = block->next;
-			}*/
-		deleteBlock(getBlock(p));
+		
+		//printf("block = %p\n", block);
+		void *block = getBlockPoint(p);
+		removeBlock(block);
 	}
 ////////////////////////////////////////////
 
 		// каждая сточка по 8 байт
 		// в каждой сточке : адресс: 
+		/*
 	void printBlocks(){
 		//static const width = 16;
 		static char devider[35] = { 0 };
 		if(devider[0] != '.') memset(devider, '.', 34);
 		blocks.sort();
 		for(auto block : blocks){
-			hexdump(block, sizeof(Block), 8, false);
+			hexdump(block, sizeof(BlockMetadata), 8, false);
 			char str[35] = { 0 };
 			printf("\n\n%s\n", devider);
 			hexdump((uint8_t *)block + BLOCKSIZE(block) - 1, 1, 8, false);
 			printf("\n\n%s\n", devider);
 		}		
 	}
-	
+	*/
 	//template <class type>
 	bool mixList(const void * a, const void * b){
 		return rand() % 2;
 	}
 	
 	void testFree(std::list<void *> &addrs){
-		printf("free\n");
+		//printf("free\n");
+		
 		auto i = addrs.end();
 		i--;
 		void *addr = *i;
 		addrs.pop_back();
-		printf("addr = %p\n", addr);
+		//printf("addr = %p\n", addr);
 		myfree(addr);
 	}
 	
 	void testAlloc(std::list<void *> &addrs, size_t maxSize){
-		printf("alloc\n");
+		//printf("alloc\n");
 		size_t allocSize = rand() % (maxSize + 1);
 		//printf("allocSize=%d\n", allocSize);
 		void *addr = myalloc(allocSize);
 		//printf("addr = %p\n", addr);
-		if(addr == NULL) testFree(addrs);
-		else addrs.push_back(addr);
+		if(addr != NULL) 
+		    addrs.push_back(addr);
 		if(addrs.size() > 1)
 		addrs.sort(mixList);
 	}
@@ -426,20 +353,22 @@
 	    printf("\nstart testing\n");
 		std::list<void *> addrs;
 		testAlloc(addrs, size);
-		printBlocks();
-		for(int i = 0; i < 10; i++){
-			printf("test %d:\n", i);
+		//printBlocks();
+		for(int i = 0; i < 100; i++){
+			//printf("test %d:\n", i);
 			bool alloc = rand() % 2;
 			if(alloc || addrs.empty()){
 				testAlloc(addrs, size);
 			} else {
 				testFree(addrs);
 			}
-			printBlocks();
-			printf("addrs:\n");
+			//printBlocks();
+			//printf("addrs:\n");
+			/*
 			for(auto addr : addrs) {
 				printf("%p\n", addr);
 			}
+			*/
 		}
 	}
 /*
@@ -475,7 +404,7 @@ int main(){
 		return 1;
 	}
 	mysetup(mem, size);
-	printBlocks();
+	//printBlocks();
 	test(size);
 	return 0;
 }
