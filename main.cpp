@@ -7,13 +7,6 @@
 
 using namespace std;
 	
-//all structs point in one part of mem and start with same addr
-	/*
-	struct _AllocBlockMetadata{
-		bool isFree;
-		size_t size;
-	};*/
-	
 	struct _BlockMetadata{
 	    bool isFree; //если блок свободный
 	    bool isHead; //если это метаданные в начале блока
@@ -22,13 +15,11 @@ using namespace std;
 	    struct _BlockMetadata *next;
 	};
 	
-	//typedef BlockI struct _BlockInfo;
 	typedef uint8_t Byte;
 	typedef struct _BlockMetadata Node;
 	typedef struct _BlockMetadata BlockMetadata;
 	typedef struct _BlockMetadata AllocBlockMetadata;
 	typedef struct _BlockMetadata FreeBlockMetadata;
-	//typedef PBlock BlockMetadata *;
 	Node *head = NULL;
     
 	BlockMetadata *getHeadMetadataPoint(void *block){
@@ -168,16 +159,19 @@ using namespace std;
 		//second block merge to first block
 	void *merge(void *firstblock, void *secondblock){
 	    if(firstblock == secondblock) return NULL;
-	    BlockMetadata &FBmetadata = getMetadata(firstblock);
-	    BlockMetadata &SBmetadata = getMetadata(secondblock);
+	    //BlockMetadata &SBmetadata = getMetadata(secondblock);
 	    void *block = firstblock < secondblock ? firstblock : secondblock;
-	    if(SBmetadata.isFree) 
+	    if(isFreeBlock(secondblock)) 
 	        removeBlock(secondblock);
-	    //setMemSize(block, FBmetadata.size + SBmetadata.size);
-	    FBmetadata.size += SBmetadata.size;
+	    BlockMetadata &FBmetadata = getMetadata(firstblock);
+	    FBmetadata.size += getBlockSize(secondblock);
 	    setMetadata(block, FBmetadata);
 	    return block;
 	}
+	
+	//10110  22
+	//00101  5
+	//10011  19
 	
 	void *createBlock(void *blockpoint, bool isFreeBlock, size_t memsize){
 	    //
@@ -191,7 +185,7 @@ using namespace std;
 	    pheadmeta->isFree = isFreeBlock;
 	    pheadmeta->size = memsize;
 	    //
-	    //printf("\n metadata.size = %zu\n", metadata.size);
+    	    //printf("\n metadata.size = %zu\n", metadata.size);
 	    //
 	    if(isFreeBlock){
 	        FreeBlockMetadata &FBmetadata = *(FreeBlockMetadata *)pheadmeta;
